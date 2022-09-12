@@ -1,4 +1,4 @@
-scaleHamburgCensus <- function (data){
+scaleHamburgCensus <- function (data, kommune=TRUE){
 
    # Obtain weights
   weights <- read.xlsx("Data/census/Zensus Bildungsdaten Hamburg.xlsx", sheet = "Hamburg_formatted") %>% filter(GKZ != 02000000)

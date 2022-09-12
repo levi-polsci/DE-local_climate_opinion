@@ -71,7 +71,7 @@ VerarbGewerbe19 <- VerarbGewerbe19 %>%
   select(-'id') %>%  select(-'gemeinde_name')
 
   ### Beschäftigungsdaten
-  beschaeftigung <- readRDS("Data/contexts/other - landkreise/Beschaeftigungsdaten_Kreise/Besch_16_19.rds") %>% clean_names() %>% rename(Year=jahr)  %>% select(-"kommune")
+  beschaeftigung <- readRDS("Data/contexts/other - landkreise/Beschaeftigungsdaten_Kreise/Besch_16_19.rds") %>% clean_names() %>% dplyr::rename(Year=jahr)  %>% select(-"kommune")
   options(scipen = 999) # supress scientific notation
   beschaeftigung$gkz <- as.factor(ifelse(beschaeftigung$gkz < 10000000, paste0("0", as.character(beschaeftigung$gkz)),as.character(beschaeftigung$gkz)))
   beschaeftigung$gkz <- substr(beschaeftigung$gkz, 1,5) # use only the first five digits so it is aligned with the other data
@@ -129,7 +129,7 @@ suppressWarnings(socioDemoData <- socioDemoData[!is.na(as.numeric(as.character(s
   mutate(across(where(is.character), ~na_if(., "-"))) %>% # - exchange "-" and "." for NA
   mutate(across(where(is.character), ~na_if(., "."))) %>%
   mutate(across(where(is.character), as.numeric)) %>% # # - convert to numbers
-  mutate(across(gkz, as.character)) %>% rename(lk_kz=gkz))
+  mutate(across(gkz, as.character)) %>% dplyr::rename(lk_kz=gkz))
 
   return(socioDemoData)
 }

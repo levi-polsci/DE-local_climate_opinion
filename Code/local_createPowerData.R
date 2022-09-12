@@ -3,7 +3,7 @@ createPowerData <- function (level, disaggregate_cities=FALSE){
   options(scipen = 999) # supress scientific notation
   ifelse(disaggregate_cities, file <- "Data/contexts/power/Version2_Berlin/Kraftwerke_aggregiert_V2.rds", file <- "Data/contexts/power/Kraftwerke_aggregiert.rds")
   kw_data <- readRDS(file) %>% clean_names() %>% # Read and rename columns
-    rename(tech=energietrager, capacity=bruttoleistung_der_einheit)
+    dplyr::rename(tech=energietrager, capacity=bruttoleistung_der_einheit)
 
   if(!disaggregate_cities) colnames(kw_data)[3] <- "gkz"
 

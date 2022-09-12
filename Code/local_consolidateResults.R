@@ -1,16 +1,20 @@
 consolidateResults <- function (context=NULL, ind =NULL){
 
   if(is.null(context))
-      context <- readRDS("Data/contexts/contextData_20220503.rds")
+      context <- readRDS("Data/results/input/contextData_kommune_20220712.rds")
   if(is.null(ind))
-    ind <- readRDS("Data/individualData_20220524.rds")
+    ind <- readRDS("Data/results/input/individualData_landkreis_20220712.rds")
 
   context <- context %>% filter(year!=2016) %>% rename(ags=lk_kz)
   ind <- ind %>% collap(Landkreisname + Bundesland ~ lk_kz) %>% rename(ags=lk_kz)
   # -- obtain list of all files in the folder
   filenames_in <- list.files("Data/results/output")
+  filenames_in <- filenames_in[!grepl("kommune", filenames_in)]
   ttl_map <- read.xlsx("Data/title_data.xlsx")
   ttl_map$subtitle_EN <- gsub("xxx", "", ttl_map$subtitle_EN )
+
+  ls_vars <- sub("*fittedModel_y.","", sub("-.*", "",filenames_in))
+  ls_years <- sub(".*-","", sub(".rds.*", "",filenames_in))
 
   # create empty dataframe object
   results_lk <- as.data.frame(matrix(NA, nrow = nrow(context), ncol = 2+length(unique(ls_vars))))
@@ -45,9 +49,9 @@ consolidateResults <- function (context=NULL, ind =NULL){
 
   results_lk[is.na(results_lk$Bundesland), "Bundesland"]<-"Schleswig-Holstein"
 
-  saveRDS(results_lk, "Data/results/results_lk.rds")
+  saveRDS(results_lk, "Data/results/results_lk_20220720.rds")
   write.xlsx(results_lk, "Data/results/results_lk.xlsx")
-  print("Results saves as one dataframe.")
+  print("Results saved in dataframe.")
 
 
 }

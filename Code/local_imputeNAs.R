@@ -1,4 +1,4 @@
-imputeNAs <- function (ind, cont,target, mode=1){
+imputeNAs <- function (ind, cont,target, mode=1, level="landkreis"){
 
   if(!(target %in% c("individual", "context")))
     stop("Please specify whether to impute individual or context level data.")
@@ -11,25 +11,41 @@ imputeNAs <- function (ind, cont,target, mode=1){
     }
 
     #map(left_join(ind, cont, by=c("lk_kz", "year")), ~sum(is.na(.))) # check which variables contain missing values
-    cont<- cont %>% select(-year) %>% collap(~ lk_kz) %>%filter(lk_kz %in% unique(ind$lk_kz))
-    cont <- cont[ , colSums(is.na(cont)) == 0] # only using complete context level information
-    joineddata <- ind %>% select(key, year, lk_kz,gender:educ2, educ_cat, age_cat)
-    joineddata <-  left_join(joineddata, cont, by="lk_kz")
-    ind_imp <- missRanger(data =joineddata, formula = . ~ .) # ca. 1.5h
-    ind_imp$year <- ind$year
-    ind <- left_join(ind %>% select(key:year, gkz_f:Bundesland,y.fff:y.evsubs),
-                            ind_imp %>% select(key, year,gender,educ_cat,age_cat)) # create small ds in which you use technical info+outcome vars + imputed ind. predictors
+    if(level=="landkreis"){
+
+      cont<- cont %>% select(-year) %>% collap(~ lk_kz) %>%filter(lk_kz %in% unique(ind$lk_kz))
+      cont <- cont[ , colSums(is.na(cont)) == 0] # only using complete context level information
+      joineddata <- ind %>% select(key, year, lk_kz,gender:educ2, educ_cat, age_cat)
+      joineddata <-  left_join(joineddata, cont, by="lk_kz")
+      ind_imp <- missRanger(data =joineddata, formula = . ~ .) # ca. 1.5h
+      ind_imp$year <- ind$year
+      ind <- left_join(ind %>% select(key:year, gkz_f:Bundesland,y.fff:y.evsubs),
+                       ind_imp %>% select(key, year,gender,educ_cat,age_cat)) # create small ds in which you use technical info+outcome vars + imputed ind. predictors
+
+    }else{
+      if(level=="kommune"){
+        cont<- cont %>% select(-na) %>% collap(~ gkz_f) %>%filter(gkz_f %in% unique(ind$gkz_f))
+        #cont <- cont[ , colSums(is.na(cont)) == 0] # only using complete context level information
+        joineddata <- ind %>% select(key, year, gkz_f,gender, age, educ1, educ2, educ_cat, age_cat)
+        joineddata <-  left_join(joineddata, cont, by="gkz_f")
+        ind_imp <- missRanger(data =joineddata, formula = . ~ .) # ca. 30min
+        ind_imp$year <- ind$year
+        ind <- left_join(ind %>% select(key:year, gkz_f:Bundesland,y.fff:y.evsubs), #
+                       ind_imp %>% select(key, year,gender,educ_cat,age_cat)) # create small ds in which you use technical info+outcome vars + imputed ind. predictors
+
+      }else stop("Aggregation level must either be landkreis or kommune.")
+    }
+
     return(ind)
 
   }
   if(target=="context"){
 
-    cont2 <- left_join(cont, collap(ind %>% select(lk_kz,year,gender:educ2,s2:env_att), ~ lk_kz + year), by=c("lk_kz", "year"))
-
-    # The complication here is that you would like to impute variables that are missing for full years.
-    if(mode==1){# Mode 1 solution: split the dataset yearwise, impute all variables where at least 1 variable is not missing and bind the datasets together
-
-      for (y in unique(cont$year)){
+    if(level=="landkreis"){
+      cont2 <- left_join(cont, collap(ind %>% select(lk_kz,year,gender:educ2,s2:env_att), ~ lk_kz + year), by=c("lk_kz", "year"))
+      # The complication here is that you would like to impute variables that are missing for full years.
+      if(mode==1){# Mode 1 solution: split the dataset yearwise, impute all variables where at least 1 variable is not missing and bind the datasets together
+        for (y in unique(cont$year)){
         print(paste0("Impute context variables, year ", as.character(y)," ..."))
         cont_y <- cont2[cont2$year==y,]
         suppressWarnings( cont_y <- missRanger(data = cont_y,
@@ -39,12 +55,21 @@ imputeNAs <- function (ind, cont,target, mode=1){
         if(y==min(unique(context_data$year)))
           cont_imp <- cont_y else
           cont_imp <- rbind(cont_imp, cont_y)
+        }
+      }else{# Mode 2: just impute anything anyway
+        suppressWarnings(cont_imp <- missRanger(data = cont2, .~.))
       }
-    }else{# Mode 2: just impute anything anyway
-       suppressWarnings(cont_imp <- missRanger(data = cont2, .~.))
-    }
+      cont_imp <- cont_imp %>% select(lk_kz:keine_heizung_im_gebaude)
 
-    cont_imp <- cont_imp %>% select(lk_kz:keine_heizung_im_gebaude)
+    }else{
+      if(level=="kommune"){
+        # You have much more missing values on the individual level than on the context level --> hence only impute using context info
+        cont<- cont %>% select(-na)
+        cont <- missRanger(data =cont, formula = . ~ .) # ca. 30min
+        cont_imp<-cont
+
+      }else stop("Aggregation level must either be landkreis or kommune.")
+    }
 
     return(cont_imp)
   }

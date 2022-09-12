@@ -1,4 +1,4 @@
-scaleMunichCensus <- function (data){
+scaleMunichCensus <- function (data, kommune=TRUE){
 
      # Obtain weights
   weights <- read.xlsx("Data/census/munich_census_age.xlsx", sheet = "Munich_share")
@@ -14,7 +14,8 @@ scaleMunichCensus <- function (data){
   for (i in seq_len(nrow(weights))){
     # Update generic information
     census_district <- census_mun
-    census_district$gkz_f <- as.factor(as.character(paste0(weights[i,"gkz"],"0000"))) # TODO! CHANGE!
+    census_district$gkz_f <- as.factor(as.character(paste0(weights[i,"gkz"],"0",
+                                                           substr(as.character(weights[i,"gkz"]), start = 7, stop = 9) )))
     census_district$gem_name <-paste0("Muenchen, ", weights[i, "Stadtteil"])
     census_district$gem_population <- -1
 

@@ -1,13 +1,13 @@
 getCensusData <- function (level="landkreise", disaggregate_cities=FALSE){
 
-  if(!(level %in% c("landkreise")))
+  if(!(level %in% c("landkreise", "kommune")))
     stop("Invalid level selected. Currently implemented levels: landkreise")
 
   if(level=="landkreise")
   {
     #census <- read.xlsx("Data/Zensus/2000S-3054_Kreise.xlsx") # still uncleaned - use LMU provided census
     census <- readRDS("Data/census/census_2011_districts.rds") %>%
-      rename(lk_kz = kr_s, proportion=fraction)
+      dplyr::rename(lk_kz = kr_s, proportion=fraction)
 
     census$lk_kz <- as.factor(ifelse(census$lk_kz < 10000, paste0("0", as.character(census$lk_kz)),as.character(census$lk_kz)))
     #unique(dfImp[!(dfImp$lk_kz %in% census$lk_kz), "lk_kz"]) # check whther individual level landkreise are all in census -> YES
@@ -48,7 +48,7 @@ getCensusData <- function (level="landkreise", disaggregate_cities=FALSE){
     for (edu in pull(unique(census_long[census_long$Bildung!="Insgesamt", "Bildung"]), Bildung)){ # Run a loop for each educational level
       print(paste0("Correcting age distribution for education category '", edu,"' - calculating excess share..."))
       total <- census_long[census_long$Bildung==edu & census_long$Alter!="Insgesamt" & census_long$Geschlecht=="Insgesamt", c("id", "Alter", "count")]
-      total <- collap(total, count ~ id, FUN = fsum) %>% rename(sum=count)
+      total <- collap(total, count ~ id, FUN = fsum) %>% dplyr::rename(sum=count)
       total <- left_join(total, census_long[census_long$Bildung==edu & census_long$Alter=="Insgesamt" & census_long$Geschlecht=="Insgesamt", c("id", "count")])
       total$excess <- total$count - total$sum # calculate number of respondents not assigned to each category
       total$excess_share <- as.numeric(unlist(lapply(total$id, function (x) (total[total$id==x, "excess"] /
@@ -72,7 +72,7 @@ getCensusData <- function (level="landkreise", disaggregate_cities=FALSE){
          print(paste0("... ",edu," > ", age," ..."))
          total <- census_long[census_long$Bildung==edu & census_long$Alter==age & census_long$Geschlecht!="Insgesamt", c("id", "Geschlecht", "count")]
          if(nrow(total)!=0){
-           total <- collap(total, count ~ id, FUN = fsum) %>% rename(sum=count)
+           total <- collap(total, count ~ id, FUN = fsum) %>% dplyr::rename(sum=count)
            total <- left_join(total, census_long[census_long$Bildung==edu & census_long$Alter==age & census_long$Geschlecht=="Insgesamt", c("id", "count")])
            total$excess <- total$count - total$sum # calculate number of respondents not assigned to each category
            ids_zero_all <- pull(census_long[census_long$Bildung==edu & census_long$Alter == age & census_long$Geschlecht=="Insgesamt" &
@@ -105,7 +105,7 @@ getCensusData <- function (level="landkreise", disaggregate_cities=FALSE){
     census <- census_long[census_long$Bildung!="Insgesamt" & census_long$Alter !="Insgesamt" & census_long$Geschlecht!="Insgesamt",]
     census <- census[order(census$id),]
     #census_gem <- census
-    census <- census %>% rename(educ_cat = Bildung, age_cat = Alter, gender=Geschlecht, gem_name=name) %>%
+    census <- census %>% dplyr::rename(educ_cat = Bildung, age_cat = Alter, gender=Geschlecht, gem_name=name) %>%
       mutate(proportion = count / gem_population) %>%
       mutate(across(c(educ_cat, age_cat, gender), ~ stringi::stri_trans_general(str = .x, id="de-ASCII; Latin-ASCII")))%>%
       mutate(educ_cat= dplyr::recode(educ_cat,
@@ -135,6 +135,10 @@ getCensusData <- function (level="landkreise", disaggregate_cities=FALSE){
 
   census$gkz_f <- paste0(substr(as.character(census$gkz_f), start = 1, stop=5),substr(as.character(census$gkz_f), start = 10, stop=12))
   }
+
+  # correct issues: ex
+  census[is.infinite(census$proportion), c("count","proportion")] <- 0
+  census[census$proportion<0, c("count","proportion")] <- 0
 
 
   return(census)
